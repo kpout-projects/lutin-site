@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Lutin — enrichissement du modèle de données</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221024%22%20height=%221024%22%20viewBox=%220%200%20512%20512%22%3E%20%3Ctitle%3ELutin,%20coins%20arrondis%3C/title%3E%20%3Crect%20width=%22512%22%20height=%22512%22%20rx=%22114.5%22%20fill=%22%238C5E20%22/%3E%20%3Cpath%20id=%22chapeau%22%20d=%22M111%20217%20A150%20150%200%200%201%20401%20217%20Z%22%20fill=%22none%22%20stroke=%22%23F2EBD9%22%20stroke-width=%2225%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%20%3Cpath%20id=%22barbe%22%20d=%22M316%20292%20C320%20315%20338%20342%20362%20362%20A150%20150%200%200%201%20150%20362%20C174%20342%20192%20315%20196%20292%22%20fill=%22none%22%20stroke=%22%23F2EBD9%22%20stroke-width=%2225%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%20%3Cpath%20id=%22sourire%22%20d=%22M228%20306%20A28%2028%200%200%200%20284%20306%22%20fill=%22none%22%20stroke=%22%23F2EBD9%22%20stroke-width=%2218%22%20stroke-linecap=%22round%22/%3E%20%3Crect%20id=%22oeil-gauche%22%20x=%22193%22%20y=%22245%22%20width=%2256%22%20height=%2218%22%20rx=%229%22%20fill=%22%23F2EBD9%22/%3E%20%3Crect%20id=%22oeil-droit%22%20x=%22263%22%20y=%22245%22%20width=%2256%22%20height=%2218%22%20rx=%229%22%20fill=%22%23F2EBD9%22/%3E%20%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
+<style>
+/* Tokens — repris de lutin-site_coins-partages_maquette_v2.html, maquette validée. */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#C8A96E;--cream:#F2EBD9;--cream2:#EDE8DC;
+  --panel:#171410;--bg:#0D0D0D;--line:rgba(200,169,110,.2);
+}
+html,body{height:100%;}
+body{
+  overflow:hidden;position:relative;
+  background:var(--bg);color:var(--cream2);
+  font-family:'DM Sans',system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;}
+input{font:inherit;color:inherit;}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:3px;}
+
+[hidden]{display:none!important;}
+#gate,#app,#thanks{position:absolute;inset:0;}
+
+/* ── Entrée ── */
+.gate{
+  background:var(--panel);
+  background-image:radial-gradient(ellipse at 50% 30%,rgba(200,169,110,.1) 0%,transparent 58%);
+  display:flex;flex-direction:column;justify-content:center;padding:0 26px;
+}
+.gate-box{max-width:360px;margin:0 auto;width:100%;}
+.gate h1{
+  font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;
+  font-size:31px;line-height:1.15;color:var(--cream);text-align:center;margin-bottom:34px;
+}
+.fld{margin-top:12px;}
+.fld label{display:block;font-size:12px;color:rgba(237,232,220,.6);margin-bottom:5px;}
+.inp{
+  width:100%;height:42px;border-radius:9px;background:rgba(242,235,217,.06);
+  border:1px solid rgba(200,169,110,.22);padding:0 12px;font-size:14px;color:var(--cream);
+}
+.inp::placeholder{color:rgba(237,232,220,.32);}
+.inp.bad{border-color:#C9705F;}
+.inp.pw{letter-spacing:3px;font-size:16px;}
+.err{font-size:12px;color:#E29A8A;margin-top:5px;}
+.cta{
+  width:100%;height:46px;border-radius:10px;background:var(--gold);color:var(--bg);
+  font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;
+}
+.cta:disabled{opacity:.4;cursor:default;}
+.gate .cta{margin-top:16px;}
+.forgot{display:block;margin:18px auto 0;font-size:12.5px;color:var(--gold);text-align:center;}
+.forgot-msg{margin-top:14px;font-size:12.5px;line-height:1.55;color:rgba(237,232,220,.62);text-align:center;}
+.forgot-msg a{color:var(--gold);}
+
+/* ── App (bandeau + carte) ── */
+#app{display:flex;flex-direction:column;}
+.bar{
+  height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;border-bottom:1px solid rgba(200,169,110,.12);
+}
+.brand{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:25px;color:var(--gold);line-height:1;}
+.right{display:flex;align-items:center;gap:10px;}
+.count{font-size:12px;color:rgba(237,232,220,.6);}
+.send{background:var(--gold);color:var(--bg);font-weight:700;font-size:13px;padding:8px 14px;border-radius:8px;}
+.send.off{opacity:.35;cursor:default;}
+
+#map-wrap{flex:1;position:relative;overflow:hidden;background:#DAD2BB;}
+#map{position:absolute;inset:0;}
+.leaflet-div-icon{background:transparent;border:0;}
+
+.seg{position:absolute;left:10px;top:10px;z-index:500;display:flex;background:rgba(13,13,13,.9);border:1px solid rgba(200,169,110,.28);border-radius:9px;overflow:hidden;font-size:12px;}
+.seg button{padding:7px 11px;color:rgba(237,232,220,.55);}
+.seg button.on{background:rgba(200,169,110,.2);color:var(--gold);font-weight:500;}
+.zoom{position:absolute;right:10px;top:10px;z-index:500;display:flex;flex-direction:column;border:1px solid rgba(200,169,110,.28);border-radius:9px;overflow:hidden;background:rgba(13,13,13,.9);}
+.zoom button{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:18px;line-height:1;}
+.zoom button+button{border-top:1px solid rgba(200,169,110,.2);}
+.attr{position:absolute;right:6px;bottom:5px;z-index:500;font-size:9px;padding:2px 6px;background:rgba(242,235,217,.82);color:#4B3A1F;border-radius:4px;}
+
+.pin .n{position:absolute;top:-5px;right:-8px;min-width:16px;height:16px;border-radius:8px;background:var(--bg);border:1px solid var(--gold);color:var(--cream);font-size:10px;font-weight:700;line-height:14px;text-align:center;}
+.pin.sel{position:relative;isolation:isolate;}
+.pin.sel::before{content:'';position:absolute;left:-9px;top:-10px;width:44px;height:44px;border-radius:50%;background:rgba(200,169,110,.4);z-index:-1;}
+.pin svg{width:26px;height:31px;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));}
+
+.ripple{position:absolute;z-index:400;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:1.5px solid var(--gold);background:rgba(200,169,110,.2);pointer-events:none;animation:ripple-out .7s ease-out forwards;}
+.ripple::after{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--gold);}
+@keyframes ripple-out{from{opacity:1;transform:scale(.6);}to{opacity:0;transform:scale(1.15);}}
+
+.toast{position:absolute;z-index:600;left:14px;right:14px;bottom:24px;padding:11px 14px;background:var(--panel);border:1px solid rgba(200,169,110,.25);border-left:3px solid var(--gold);border-radius:10px;font-size:13px;line-height:1.45;color:var(--cream2);box-shadow:0 10px 30px rgba(0,0,0,.4);}
+
+.pop{position:absolute;z-index:700;display:flex;background:var(--panel);border:1px solid rgba(200,169,110,.3);border-radius:10px;font-size:13px;box-shadow:0 10px 26px rgba(0,0,0,.45);transform:translate(-50%,-100%);margin-top:-14px;}
+.pop button{padding:9px 14px;}
+.pop button+button{border-left:1px solid rgba(200,169,110,.2);}
+.pop .del{color:#E29A8A;}
+.pop::after{content:'';position:absolute;left:50%;bottom:-6px;width:10px;height:10px;margin-left:-5px;background:var(--panel);border-right:1px solid rgba(200,169,110,.3);border-bottom:1px solid rgba(200,169,110,.3);transform:rotate(45deg);}
+
+.scrim{position:absolute;inset:0;z-index:800;background:rgba(13,13,13,.58);}
+.sheet{position:absolute;z-index:900;left:0;right:0;bottom:0;max-height:88%;overflow-y:auto;background:var(--panel);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:10px 16px 16px;box-shadow:0 -18px 40px rgba(0,0,0,.35);}
+.grab{width:36px;height:4px;border-radius:2px;background:rgba(200,169,110,.3);margin:0 auto 12px;}
+.sh{display:flex;justify-content:space-between;align-items:baseline;}
+.st{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-size:21px;color:var(--cream);line-height:1.2;}
+.ss{font-size:12px;color:rgba(237,232,220,.5);margin-top:2px;}
+.cl{font-size:12px;color:var(--gold);}
+
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:13px 0 14px;}
+.chip{display:flex;align-items:center;gap:8px;min-height:46px;padding:6px 10px;border-radius:10px;border:1px solid rgba(200,169,110,.2);background:rgba(242,235,217,.04);font-size:12px;font-weight:500;line-height:1.15;color:var(--cream2);text-align:left;}
+.chip.on{border-color:var(--gold);background:rgba(200,169,110,.15);}
+i.d{flex:none;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px rgba(242,235,217,.55);}
+
+.recap{margin-top:12px;background:rgba(242,235,217,.04);border:1px solid rgba(200,169,110,.14);border-radius:12px;padding:3px 12px;}
+.recap div{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13.5px;color:var(--cream2);}
+.recap div+div{border-top:1px solid rgba(200,169,110,.1);}
+.note{margin-top:11px;text-align:center;font-size:12px;color:rgba(237,232,220,.62);}
+.legal{margin-top:6px;text-align:center;font-size:10.5px;line-height:1.45;color:rgba(237,232,220,.4);}
+
+/* ── Merci ── */
+.thanks{
+  background:var(--panel);
+  background-image:radial-gradient(ellipse at 50% 34%,rgba(200,169,110,.1) 0%,transparent 58%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px;
+}
+.thanks .brand{position:absolute;top:14px;left:14px;}
+.thanks h2{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;font-size:42px;line-height:1.1;color:var(--cream);}
+.thanks p{font-size:15px;color:rgba(237,232,220,.7);margin-top:10px;}
+.ghostbtn{margin-top:30px;border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:12px 22px;font-size:14px;font-weight:500;}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<g id="pin-glyph">
+<path d="M13 1.5C6.9 1.5 2 6.3 2 12.3c0 7.6 8.6 15.6 10.1 16.9.5.4 1.3.4 1.8 0C15.4 27.9 24 19.9 24 12.3 24 6.3 19.1 1.5 13 1.5z" fill="currentColor" stroke="#F2EBD9" stroke-width="1.6"/>
+<circle cx="13" cy="12.3" r="3.6" fill="#F2EBD9" fill-opacity=".95"/>
+</g>
+</defs>
+</svg>
+
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <h1>Lutin — enrichissement du modèle de données</h1>
+    <div class="fld" style="margin-top:0">
+      <label for="pw-input">Mot de passe</label>
+      <input id="pw-input" class="inp pw" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="pw-err" class="err" hidden>Mot de passe incorrect.</div>
+    </div>
+    <button id="pw-submit" class="cta">Entrer</button>
+    <button id="forgot-link" class="forgot" type="button">Mot de passe oublié ?</button>
+    <p id="forgot-msg" class="forgot-msg" hidden>
+      Écris-moi à <a href="mailto:contact@lelutin.app?subject=Mot%20de%20passe%20%E2%80%94%20coins%20partag%C3%A9s">contact@lelutin.app</a>, je t'envoie un nouveau mot de passe.
+    </p>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <div class="bar">
+    <span class="brand">Lutin</span>
+    <div class="right">
+      <span id="count" class="count">0 coin</span>
+      <button id="send-btn" class="send off" disabled>Envoyer</button>
+    </div>
+  </div>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+
+    <div class="seg">
+      <button id="seg-relief" class="on" type="button">Relief</button>
+      <button id="seg-satellite" type="button">Satellite</button>
+    </div>
+    <div class="zoom">
+      <button id="zoom-in" type="button" aria-label="Zoomer">+</button>
+      <button id="zoom-out" type="button" aria-label="Dézoomer">−</button>
+    </div>
+    <div class="attr">© IGN</div>
+
+    <div id="toast-help" class="toast">Zoome sur ton coin, puis touche la carte.</div>
+    <div id="toast-transient" class="toast" hidden></div>
+
+    <div id="pop" class="pop" hidden>
+      <button id="pop-edit" type="button">Modifier</button>
+      <button id="pop-delete" class="del" type="button">Supprimer</button>
+    </div>
+
+    <div id="species-scrim" class="scrim" hidden></div>
+    <div id="species-sheet" class="sheet" hidden>
+      <div class="grab"></div>
+      <div class="sh">
+        <div id="species-title" class="st">Quelle espèce ici ?</div>
+        <button id="species-close" class="cl" type="button">Fermer</button>
+      </div>
+      <div class="ss">Tu peux en choisir plusieurs.</div>
+      <div id="chips" class="chips"></div>
+      <button id="species-confirm" class="cta" disabled>Poser le coin</button>
+    </div>
+
+    <div id="send-scrim" class="scrim" hidden></div>
+    <div id="send-sheet" class="sheet" hidden>
+      <div class="grab"></div>
+      <div class="sh">
+        <div class="st">Envoyer mes coins</div>
+        <button id="send-close" class="cl" type="button">Fermer</button>
+      </div>
+      <div id="recap" class="recap"></div>
+      <div class="fld">
+        <label for="first-name">Ton prénom</label>
+        <input id="first-name" class="inp" type="text" maxlength="40" autocomplete="given-name">
+        <div id="name-err" class="err" hidden>Indique ton prénom.</div>
+      </div>
+      <div id="send-err" class="err" style="margin-top:12px" hidden></div>
+      <button id="send-confirm" class="cta" style="margin-top:18px">Envoyer</button>
+      <div class="note">Visible par moi seul.</div>
+      <div class="legal">Tes coins m'arrivent avec ton prénom. Je ne les montre à personne. Pour les effacer, demande-moi.</div>
+    </div>
+  </div>
+</div>
+
+<div id="thanks" class="thanks" hidden>
+  <span class="brand">Lutin</span>
+  <h2 id="thanks-title">Merci.</h2>
+  <p id="thanks-count"></p>
+  <button id="thanks-again" class="ghostbtn" type="button">Poser d'autres coins</button>
+</div>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  // ── Config ──────────────────────────────────────────────────────
+  const FN_URL = 'https://eekwmnrbpzuzvqefwqvs.supabase.co/functions/v1/collect-coins';
+  const FN_APIKEY = 'sb_publishable_s4Z4ohR3Ma90oVadC5lT5Q_GDV4vsl-';
+
+  // Reprises telles quelles de src/constants/mapTiles.ts (dépôt lutin-app) —
+  // ne pas réécrire ces URL de mémoire si elles changent un jour là-bas.
+  const TILE_RELIEF = {
+    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile'
+      + '&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png'
+      + '&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    maxZoom: 19,
+  };
+  const TILE_SATELLITE = {
+    url: 'https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile'
+      + '&LAYER=ORTHOIMAGERY.ORTHOPHOTOS.BDORTHO&STYLE=normal&FORMAT=image/jpeg'
+      + '&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    maxNativeZoom: 18,
+    maxZoom: 19,
+  };
+
+  // France métropolitaine, Corse comprise — mêmes bornes que la fonction Edge
+  // et la table (marge volontaire, cf. commentaires côté serveur).
+  const FRANCE_BOUNDS = [[41.2, -5.3], [51.2, 9.7]];
+
+  const MIN_POSE_ZOOM = 17; // à confirmer en test sur le terrain (ticket)
+  const MAX_PINS = 100;
+
+  const SPECIES = [
+    { key: 'bordeaux', color: '#C8702A', label: 'Cèpe de Bordeaux', singular: 'cèpe de Bordeaux', plural: 'cèpes de Bordeaux' },
+    { key: 'bronze', color: '#6B4226', label: 'Cèpe bronzé', singular: 'cèpe bronzé', plural: 'cèpes bronzés' },
+    { key: 'ete', color: '#E0A96D', label: "Cèpe d'été", singular: "cèpe d'été", plural: "cèpes d'été" },
+    { key: 'autres_bolets', color: '#A23B32', label: 'Autres bolets', singular: 'autre bolet (faux cèpe)', plural: 'autres bolets (faux cèpes)' },
+    { key: 'girolle', color: '#F2C230', label: 'Girolle', singular: 'girolle', plural: 'girolles' },
+    { key: 'morille_conique', color: '#5F9E6E', label: 'Morille conique', singular: 'morille conique', plural: 'morilles coniques' },
+    { key: 'morille_commune', color: '#4F8FB8', label: 'Morille commune', singular: 'morille commune', plural: 'morilles communes' },
+  ];
+  const speciesByKey = Object.fromEntries(SPECIES.map((s) => [s.key, s]));
+  const PROVISIONAL_COLOR = 'rgba(237,232,220,.6)';
+
+  // ── État — tout vit en mémoire de la page, rien n'est stocké. ─────
+  let password = null;
+  let map = null;
+  let layerRelief = null;
+  let layerSatellite = null;
+  let pins = []; // { id, lat, lon, species:[key,...], marker }
+  let editingPinId = null;
+  let pendingMarker = null; // marqueur provisoire tant que le volet espèce est ouvert
+  let pendingLatLng = null;
+  let helpBannerShown = true;
+  let toastTimer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const gate = $('gate'), appEl = $('app'), thanksEl = $('thanks');
+
+  // ── Utilitaires ─────────────────────────────────────────────────
+  const pinIcon = (colorHex, count, selected) => L.divIcon({
+    className: 'pin' + (selected ? ' sel' : ''),
+    html: '<svg viewBox="0 0 26 31" style="color:' + colorHex + '"><use href="#pin-glyph"/></svg>'
+      + (count >= 2 ? '<span class="n">' + count + '</span>' : ''),
+    iconSize: [26, 31],
+    iconAnchor: [13, 30],
+  });
+
+  const pinColorFor = (speciesKeys) => speciesKeys.length ? speciesByKey[speciesKeys[0]].color : PROVISIONAL_COLOR;
+
+  const showToast = (el, text, autoHideMs) => {
+    if (text !== undefined) el.textContent = text;
+    el.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    if (autoHideMs) toastTimer = setTimeout(() => { el.hidden = true; }, autoHideMs);
+  };
+
+  const updateCount = () => {
+    const n = pins.length;
+    $('count').textContent = n === 0 ? '0 coin' : n === 1 ? '1 coin' : n + ' coins';
+    const btn = $('send-btn');
+    btn.disabled = n === 0;
+    btn.classList.toggle('off', n === 0);
+  };
+
+  // ── Écran d'entrée ──────────────────────────────────────────────
+  const pwInput = $('pw-input');
+  const pwErr = $('pw-err');
+
+  async function attemptPassword() {
+    const value = pwInput.value;
+    if (!value) return;
+    $('pw-submit').disabled = true;
+    try {
+      const res = await fetch(FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: FN_APIKEY },
+        body: JSON.stringify({ action: 'check', password: value }),
+      });
+      if (res.ok) {
+        password = value;
+        pwErr.hidden = true;
+        pwInput.classList.remove('bad');
+        enterApp();
+      } else {
+        pwInput.classList.add('bad');
+        pwErr.hidden = false;
+        pwInput.value = '';
+        pwInput.focus();
+      }
+    } catch {
+      pwInput.classList.add('bad');
+      pwErr.textContent = 'Envoi impossible. Réessaie.';
+      pwErr.hidden = false;
+    } finally {
+      $('pw-submit').disabled = false;
+    }
+  }
+
+  $('pw-submit').addEventListener('click', attemptPassword);
+  pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptPassword(); });
+  pwInput.addEventListener('input', () => { pwErr.hidden = true; pwInput.classList.remove('bad'); });
+
+  $('forgot-link').addEventListener('click', () => {
+    $('forgot-msg').hidden = !$('forgot-msg').hidden;
+  });
+
+  function returnToGate(message) {
+    appEl.hidden = true;
+    gate.hidden = false;
+    pwInput.value = '';
+    pwInput.classList.add('bad');
+    pwErr.textContent = message;
+    pwErr.hidden = false;
+    pwInput.focus();
+  }
+
+  // ── Entrée dans l'app / carte ───────────────────────────────────
+  function enterApp() {
+    gate.hidden = true;
+    appEl.hidden = false;
+    if (!map) initMap();
+  }
+
+  function initMap() {
+    map = L.map('map', {
+      zoomControl: false,
+      attributionControl: false,
+      maxZoom: 19,
+      minZoom: 5,
+    });
+    map.fitBounds(FRANCE_BOUNDS);
+
+    layerRelief = L.tileLayer(TILE_RELIEF.url, { maxZoom: TILE_RELIEF.maxZoom }).addTo(map);
+    layerSatellite = L.tileLayer(TILE_SATELLITE.url, {
+      maxZoom: TILE_SATELLITE.maxZoom,
+      maxNativeZoom: TILE_SATELLITE.maxNativeZoom,
+    });
+
+    $('seg-relief').addEventListener('click', () => switchBase('relief'));
+    $('seg-satellite').addEventListener('click', () => switchBase('satellite'));
+    $('zoom-in').addEventListener('click', () => map.zoomIn());
+    $('zoom-out').addEventListener('click', () => map.zoomOut());
+
+    map.on('click', onMapClick);
+    map.on('movestart zoomstart', closePopMenu);
+
+    updateCount();
+  }
+
+  function switchBase(which) {
+    if (which === 'relief') {
+      map.removeLayer(layerSatellite);
+      layerRelief.addTo(map);
+      $('seg-relief').classList.add('on');
+      $('seg-satellite').classList.remove('on');
+    } else {
+      map.removeLayer(layerRelief);
+      layerSatellite.addTo(map);
+      $('seg-satellite').classList.add('on');
+      $('seg-relief').classList.remove('on');
+    }
+  }
+
+  // ── Pose d'un coin ──────────────────────────────────────────────
+  function onMapClick(e) {
+    if (!$('species-sheet').hidden) { closeSpeciesSheet(true); return; }
+    if (!$('pop').hidden) { closePopMenu(); return; }
+
+    if (map.getZoom() < MIN_POSE_ZOOM) {
+      showRipple(e.containerPoint);
+      showToast($('toast-transient'), 'Zoome encore pour poser ton coin précisément.', 2800);
+      return;
+    }
+    if (pins.length >= MAX_PINS) {
+      showToast($('toast-transient'), '100 coins maximum par envoi. Envoie ceux-là, puis continue.', 3400);
+      return;
+    }
+
+    editingPinId = null;
+    pendingLatLng = e.latlng;
+    pendingMarker = L.marker(e.latlng, { icon: pinIcon(PROVISIONAL_COLOR, 0, false), interactive: false }).addTo(map);
+    openSpeciesSheet([]);
+  }
+
+  function showRipple(containerPoint) {
+    const el = document.createElement('div');
+    el.className = 'ripple';
+    el.style.left = containerPoint.x + 'px';
+    el.style.top = containerPoint.y + 'px';
+    $('map-wrap').appendChild(el);
+    setTimeout(() => el.remove(), 750);
+  }
+
+  // ── Volet « Quelle espèce ici ? » ───────────────────────────────
+  let selection = [];
+
+  function renderChips() {
+    const wrap = $('chips');
+    wrap.innerHTML = '';
+    SPECIES.forEach((s) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip' + (selection.includes(s.key) ? ' on' : '');
+      btn.innerHTML = '<i class="d" style="--c:' + s.color + '"></i><span>' + s.label + '</span>';
+      btn.addEventListener('click', () => toggleSpecies(s.key));
+      wrap.appendChild(btn);
+    });
+    $('species-confirm').disabled = selection.length === 0;
+    if (pendingMarker) pendingMarker.setIcon(pinIcon(pinColorFor(selection), selection.length, false));
+  }
+
+  function toggleSpecies(key) {
+    const i = selection.indexOf(key);
+    if (i === -1) selection.push(key); else selection.splice(i, 1);
+    renderChips();
+  }
+
+  function openSpeciesSheet(currentSpecies) {
+    selection = currentSpecies.slice();
+    $('species-title').textContent = 'Quelle espèce ici ?';
+    $('species-confirm').textContent = editingPinId ? 'Enregistrer' : 'Poser le coin';
+    renderChips();
+    $('species-sheet').hidden = false;
+  }
+
+  function closeSpeciesSheet(cancelled) {
+    $('species-sheet').hidden = true;
+    if (cancelled) {
+      if (pendingMarker) { map.removeLayer(pendingMarker); pendingMarker = null; }
+      editingPinId = null;
+    }
+  }
+
+  $('species-close').addEventListener('click', () => closeSpeciesSheet(true));
+
+  $('species-confirm').addEventListener('click', () => {
+    if (selection.length === 0) return;
+    const color = pinColorFor(selection);
+
+    if (editingPinId) {
+      const pin = pins.find((p) => p.id === editingPinId);
+      pin.species = selection.slice();
+      pin.marker.setIcon(pinIcon(color, selection.length, false));
+    } else {
+      map.removeLayer(pendingMarker);
+      const marker = L.marker(pendingLatLng, { icon: pinIcon(color, selection.length, false) });
+      marker.addTo(map);
+      const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 7);
+      marker.on('click', (ev) => { L.DomEvent.stopPropagation(ev); openPopMenu(id); });
+      pins.push({ id, lat: pendingLatLng.lat, lon: pendingLatLng.lng, species: selection.slice(), marker });
+      pendingMarker = null;
+      if (helpBannerShown) { helpBannerShown = false; $('toast-help').hidden = true; }
+      updateCount();
+    }
+    $('species-sheet').hidden = true;
+    editingPinId = null;
+  });
+
+  // ── Modifier / Supprimer un coin posé ───────────────────────────
+  function openPopMenu(pinId) {
+    const pin = pins.find((p) => p.id === pinId);
+    if (!pin) return;
+    editingPinId = pinId;
+    const point = map.latLngToContainerPoint(pin.marker.getLatLng());
+    const pop = $('pop');
+    pop.style.left = point.x + 'px';
+    pop.style.top = (point.y - 30) + 'px';
+    pop.hidden = false;
+  }
+
+  function closePopMenu() { $('pop').hidden = true; }
+
+  $('pop-edit').addEventListener('click', () => {
+    const id = editingPinId;
+    closePopMenu();
+    const pin = pins.find((p) => p.id === id);
+    editingPinId = id;
+    openSpeciesSheet(pin.species);
+  });
+
+  $('pop-delete').addEventListener('click', () => {
+    const pin = pins.find((p) => p.id === editingPinId);
+    if (pin) {
+      map.removeLayer(pin.marker);
+      pins = pins.filter((p) => p.id !== pin.id);
+      updateCount();
+    }
+    editingPinId = null;
+    closePopMenu();
+  });
+
+  // ── Volet « Envoyer mes coins » ─────────────────────────────────
+  function renderRecap() {
+    const counts = new Map();
+    pins.forEach((p) => p.species.forEach((k) => counts.set(k, (counts.get(k) || 0) + 1)));
+    const wrap = $('recap');
+    wrap.innerHTML = '';
+    SPECIES.forEach((s) => {
+      const n = counts.get(s.key);
+      if (!n) return;
+      const line = document.createElement('div');
+      line.innerHTML = '<i class="d" style="--c:' + s.color + '"></i><span>'
+        + n + ' ' + (n === 1 ? s.singular : s.plural) + '</span>';
+      wrap.appendChild(line);
+    });
+  }
+
+  $('send-btn').addEventListener('click', () => {
+    if (pins.length === 0) return;
+    renderRecap();
+    $('send-err').hidden = true;
+    $('name-err').hidden = true;
+    $('first-name').classList.remove('bad');
+    const n = pins.length;
+    $('send-confirm').textContent = 'Envoyer ' + n + (n === 1 ? ' coin' : ' coins');
+    $('send-scrim').hidden = false;
+    $('send-sheet').hidden = false;
+  });
+
+  function closeSendSheet() {
+    $('send-scrim').hidden = true;
+    $('send-sheet').hidden = true;
+  }
+  $('send-close').addEventListener('click', closeSendSheet);
+  $('send-scrim').addEventListener('click', closeSendSheet);
+
+  $('send-confirm').addEventListener('click', async () => {
+    const nameInput = $('first-name');
+    const firstName = nameInput.value;
+    if (!firstName) {
+      nameInput.classList.add('bad');
+      $('name-err').hidden = false;
+      nameInput.focus();
+      return;
+    }
+
+    const btn = $('send-confirm');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Envoi en cours…';
+    $('send-err').hidden = true;
+
+    try {
+      const res = await fetch(FN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: FN_APIKEY },
+        body: JSON.stringify({
+          action: 'submit',
+          password,
+          first_name: firstName,
+          pins: pins.map((p) => ({ lat: p.lat, lon: p.lon, species: p.species })),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        finishSuccess(firstName, data.count);
+        return;
+      }
+
+      if (res.status === 401) {
+        closeSendSheet();
+        returnToGate('Le mot de passe a changé. Saisis-le à nouveau, tes coins sont toujours là.');
+        return;
+      }
+
+      $('send-err').textContent = 'Un souci de mon côté. Tes coins sont toujours là, réessaie plus tard.';
+      $('send-err').hidden = false;
+    } catch {
+      $('send-err').textContent = 'Envoi impossible. Tes coins sont toujours là, réessaie.';
+      $('send-err').hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  });
+
+  function finishSuccess(firstName, count) {
+    pins.forEach((p) => map.removeLayer(p.marker));
+    pins = [];
+    updateCount();
+    closeSendSheet();
+    helpBannerShown = false;
+    $('toast-help').hidden = true;
+
+    $('thanks-title').textContent = 'Merci ' + firstName + '.';
+    $('thanks-count').textContent = count === 1 ? '1 coin bien reçu.' : count + ' coins bien reçus.';
+    appEl.hidden = true;
+    thanksEl.hidden = false;
+  }
+
+  $('thanks-again').addEventListener('click', () => {
+    thanksEl.hidden = true;
+    appEl.hidden = false;
+    $('toast-help').hidden = false;
+    helpBannerShown = true;
+  });
+
+  // Avertissement natif à la fermeture s'il reste des coins non envoyés.
+  window.addEventListener('beforeunload', (e) => {
+    if (pins.length > 0) { e.preventDefault(); e.returnValue = ''; }
+  });
+})();
+</script>
+</body>
+</html>
